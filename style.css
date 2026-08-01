@@ -36,36 +36,25 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 4rem;
+    margin-bottom: 3rem;
 }
 
 .logo {
     font-size: 1.8rem;
     font-weight: 800;
     letter-spacing: -0.5px;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
 }
 
-.lightning {
-    color: var(--primary);
-}
+.lightning { color: var(--primary); }
 
 .user-profile {
     display: flex;
     align-items: center;
     gap: 1rem;
-    cursor: pointer;
     padding: 0.5rem 1rem;
     background: var(--card-bg);
     border: 1px solid var(--glass-border);
     border-radius: 30px;
-    transition: all 0.2s ease;
-}
-
-.user-profile:hover {
-    background: rgba(30, 41, 59, 0.8);
 }
 
 .avatar {
@@ -76,10 +65,9 @@ header {
 }
 
 .search-section h1 {
-    font-size: 3rem;
-    margin-bottom: 2rem;
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
     font-weight: 800;
-    letter-spacing: -1px;
 }
 
 .search-box {
@@ -100,10 +88,7 @@ header {
     padding: 0 1rem;
 }
 
-.icon {
-    font-size: 1.2rem;
-    margin-right: 0.5rem;
-}
+.icon { font-size: 1.2rem; margin-right: 0.5rem; }
 
 .search-box input {
     width: 100%;
@@ -115,9 +100,7 @@ header {
     outline: none;
 }
 
-.search-box input::placeholder {
-    color: var(--text-muted);
-}
+.search-box input::placeholder { color: var(--text-muted); }
 
 .btn-swap {
     background: transparent;
@@ -128,17 +111,10 @@ header {
     border-radius: 50%;
     cursor: pointer;
     font-size: 1.2rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    transition: all 0.2s;
 }
 
-.btn-swap:hover {
-    color: var(--text-main);
-    background: rgba(255, 255, 255, 0.1);
-    transform: rotate(180deg);
-}
+.btn-swap:hover { color: var(--text-main); transform: rotate(180deg); }
 
 .btn-primary {
     background: var(--primary);
@@ -149,21 +125,21 @@ header {
     font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    transition: all 0.2s;
 }
 
 .btn-primary:hover {
     background: var(--primary-hover);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
 }
 
-.favorites-section {
-    margin-top: 4rem;
+.hidden { display: none !important; }
+
+#results-section, .favorites-section {
+    margin-top: 3rem;
 }
 
-.favorites-section h2 {
+h2 {
     font-size: 1.2rem;
     color: var(--text-muted);
     margin-bottom: 1.5rem;
@@ -183,8 +159,7 @@ header {
     border: 1px solid var(--glass-border);
     border-radius: 20px;
     padding: 1.5rem;
-    transition: all 0.3s ease;
-    cursor: pointer;
+    transition: all 0.3s;
     position: relative;
     overflow: hidden;
 }
@@ -198,24 +173,15 @@ header {
 .card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
     margin-bottom: 1rem;
     font-size: 0.9rem;
     color: var(--text-muted);
 }
 
-.route {
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
+.time { font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; }
+.duration { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; }
 
-.route-arrow {
-    color: var(--primary);
-}
+.route { font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; }
 
 .status-badge {
     display: inline-flex;
@@ -225,33 +191,27 @@ header {
     border-radius: 20px;
     font-size: 0.85rem;
     font-weight: 600;
-}
-
-.status-ok {
     background: rgba(16, 185, 129, 0.1);
     color: var(--success);
 }
 
-.status-warning {
-    background: rgba(245, 158, 11, 0.1);
-    color: var(--warning);
+#loading-spinner {
+    text-align: center;
+    color: var(--primary);
+    font-weight: 600;
+    padding: 2rem;
+    animation: pulse 1.5s infinite;
 }
 
-/* Responsive pour téléphone */
+@keyframes pulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+}
+
 @media (max-width: 768px) {
-    .search-box {
-        flex-direction: column;
-        padding: 1rem;
-    }
-    .btn-swap {
-        transform: rotate(90deg);
-        margin: 0.5rem 0;
-    }
-    .btn-swap:hover {
-        transform: rotate(270deg);
-    }
-    .btn-primary {
-        width: 100%;
-        margin-top: 1rem;
-    }
+    .search-box { flex-direction: column; padding: 1rem; }
+    .btn-swap { transform: rotate(90deg); margin: 0.5rem 0; }
+    .btn-swap:hover { transform: rotate(270deg); }
+    .btn-primary { width: 100%; margin-top: 1rem; }
 }
