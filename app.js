@@ -3,18 +3,18 @@ const SUPABASE_KEY = 'TA_CLE_PUBLIQUE';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
-let currentSearch = null; // Pour sauvegarder le trajet si l'utilisateur le demande
+let currentSearch = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     verifierSession();
 
-    // Gestion de la modale de connexion
+    // Modale
     document.getElementById('btn-user-profile').addEventListener('click', () => {
         if (!currentUser) document.getElementById('auth-modal').classList.remove('hidden');
     });
     document.getElementById('btn-close-modal').addEventListener('click', () => document.getElementById('auth-modal').classList.add('hidden'));
     
-    // Auth Supabase
+    // Auth
     document.getElementById('btn-login').addEventListener('click', () => gererAuth('login'));
     document.getElementById('btn-register').addEventListener('click', () => gererAuth('register'));
     document.getElementById('btn-logout').addEventListener('click', async () => {
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.reload();
     });
 
-    // Autocomplétion
+    // Autocomplétion Intelligente
     setupAutocomplete('depart', 'autocomplete-depart');
     setupAutocomplete('arrivee', 'autocomplete-arrivee');
 
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         [dep.value, arr.value] = [arr.value, dep.value];
     });
 
-    // Rechercher
+    // Recherche
     document.getElementById('btn-recherche').addEventListener('click', () => {
         const dep = document.getElementById('depart').value;
         const arr = document.getElementById('arrivee').value;
@@ -40,15 +40,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         currentSearch = { depart: dep, arrivee: arr };
         document.getElementById('results-section').classList.remove('hidden');
-        
-        // Afficher le bouton de sauvegarde si l'utilisateur est connecté
-        const btnSave = document.getElementById('btn-save-favori');
-        if (currentUser) btnSave.classList.remove('hidden');
+        if (currentUser) document.getElementById('btn-save-favori').classList.remove('hidden');
         
         chercherTrains(dep, arr);
     });
 
-    // Sauvegarder uniquement au clic
+    // Favoris
     document.getElementById('btn-save-favori').addEventListener('click', sauvegarderFavoriActuel);
 });
 
@@ -59,6 +56,7 @@ async function verifierSession() {
         currentUser = session.user;
         document.getElementById('user-name').innerText = currentUser.email.split('@')[0];
         document.getElementById('btn-logout').classList.remove('hidden');
+        document.getElementById('auth-modal').classList.add('hidden');
         chargerFavoris();
     }
 }
@@ -67,6 +65,8 @@ async function gererAuth(action) {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     
+    if(!email || !password) return alert("Veuillez remplir tous les champs.");
+
     let result;
     if (action === 'login') {
         result = await supabase.auth.signInWithPassword({ email, password });
@@ -74,46 +74,65 @@ async function gererAuth(action) {
         result = await supabase.auth.signUp({ email, password });
     }
 
-    if (result.error) alert("Erreur : " + result.error.message);
-    else window.location.reload();
+    if (result.error) {
+        alert("Erreur : " + result.error.message + "\n\n💡 ASTUCE : Si c'est une création de compte, vérifiez que l'option 'Confirm email' est désactivée dans les paramètres de Supabase !");
+    } else {
+        window.location.reload();
+    }
 }
 
-// --- AUTOCOMPLÉTION (Correction des fautes) ---
+// --- AUTOCOMPLÉTION ---
+let timeoutId;
 function setupAutocomplete(inputId, listId) {
     const input = document.getElementById(inputId);
     const list = document.getElementById(listId);
 
-    input.addEventListener('input', async (e) => {
+    input.addEventListener('input', (e) => {
+        clearTimeout(timeoutId);
         const val = e.target.value;
-        if (val.length < 3) { list.classList.add('hidden'); return; }
-
-        // Appel API suisse pour deviner la gare
-        const res = await fetch(`https://transport.opendata.ch/v1/locations?query=${val}&type=station`);
-        const data = await res.json();
         
-        list.innerHTML = '';
-        if (data.stations.length > 0) {
-            list.classList.remove('hidden');
-            data.stations.slice(0, 4).forEach(station => {
-                if(station.name) {
-                    const div = document.createElement('div');
-                    div.className = 'autocomplete-item';
-                    div.innerText = station.name;
-                    div.onclick = () => {
-                        input.value = station.name;
-                        list.classList.add('hidden');
-                    };
-                    list.appendChild(div);
+        if (val.length < 2) { list.classList.add('hidden'); return; }
+
+        timeoutId = setTimeout(async () => {
+            try {
+                const res = await fetch(`https://transport.opendata.ch/v1/locations?query=${val}&type=station`);
+                const data = await res.json();
+                
+                list.innerHTML = '';
+                if (data.stations.length > 0) {
+                    list.classList.remove('hidden');
+                    data.stations.slice(0, 5).forEach(station => {
+                        if(station.name) {
+                            const div = document.createElement('div');
+                            div.className = 'autocomplete-item';
+                            div.innerHTML = `<i class="ph ph-train" style="margin-right:10px; color:var(--text-muted);"></i> ${station.name}`;
+                            div.onclick = () => {
+                                input.value = station.name;
+                                list.classList.add('hidden');
+                            };
+                            list.appendChild(div);
+                        }
+                    });
                 }
-            });
-        }
+            } catch(e) { console.error("Erreur API", e); }
+        }, 300); // Délai pour ne pas surcharger l'API
+    });
+    
+    // Fermer la liste en cliquant ailleurs
+    document.addEventListener('click', (e) => {
+        if(e.target !== input) list.classList.add('hidden');
     });
 }
 
-// --- MOTEUR DE RECHERCHE & CORRESPONDANCES ---
+// --- MOTEUR DE RECHERCHE ---
 async function chercherTrains(depart, arrivee) {
     const container = document.getElementById('results-container');
-    container.innerHTML = '<p>Analyse du réseau ferroviaire...</p>';
+    container.innerHTML = `
+        <div class="empty-state" style="padding: 2rem;">
+            <i class="ph ph-spinner ph-spin"></i>
+            <p>Recherche des meilleurs itinéraires...</p>
+        </div>
+    `;
 
     try {
         const res = await fetch(`https://transport.opendata.ch/v1/connections?from=${depart}&to=${arrivee}&limit=4`);
@@ -121,7 +140,7 @@ async function chercherTrains(depart, arrivee) {
         container.innerHTML = '';
 
         if (!data.connections || data.connections.length === 0) {
-            container.innerHTML = '<p>Aucun trajet trouvé.</p>'; return;
+            container.innerHTML = '<div class="empty-state"><p>Aucun trajet trouvé aujourd\'hui.</p></div>'; return;
         }
 
         data.connections.forEach(conn => {
@@ -129,42 +148,42 @@ async function chercherTrains(depart, arrivee) {
             const arrTime = new Date(conn.to.arrival).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
             const duree = conn.duration.replace('00d', '').substring(1, 6).replace(':', 'h');
             
-            // Générer le détail des correspondances (Timeline)
             let timelineHTML = '<div class="timeline">';
             conn.sections.forEach(section => {
-                if (section.journey) { // Si c'est un vrai train et pas de la marche
+                if (section.journey) { 
                     const secDep = new Date(section.departure.departure).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
                     const trainType = section.journey.category || 'Train';
-                    
                     timelineHTML += `
                         <div class="timeline-item">
-                            <div class="station-name">${secDep} - ${section.departure.station.name}</div>
-                            <div class="train-info">🚆 ${trainType} ${section.journey.number || ''}</div>
+                            <div class="station-name">${secDep} • ${section.departure.station.name}</div>
+                            <div class="train-info"><i class="ph ph-train"></i> ${trainType} ${section.journey.number || ''}</div>
                         </div>
                     `;
                 }
             });
-            // Ajouter la gare d'arrivée finale dans la timeline
             timelineHTML += `
                 <div class="timeline-item">
-                    <div class="station-name">${arrTime} - ${conn.to.station.name}</div>
+                    <div class="station-name">${arrTime} • ${conn.to.station.name}</div>
                 </div>
             </div>`;
 
             container.innerHTML += `
-                <div class="train-card">
-                    <div class="card-main-info">
-                        <div>
-                            <div class="time">${depTime} ➔ ${arrTime}</div>
-                            <div class="duration">${duree} • ${conn.transfers} correspondance(s)</div>
-                        </div>
+                <div class="train-card fade-in">
+                    <div class="card-header">
+                        <span>${conn.transfers === 0 ? 'Trajet Direct' : conn.transfers + ' Correspondance(s)'}</span>
                     </div>
-                    ${conn.transfers > 0 ? timelineHTML : '<p class="text-muted" style="margin-top:1rem;">Trajet direct</p>'}
+                    <div class="time-block">
+                        <div class="time">${depTime} <span style="color:var(--text-muted); font-size:1.5rem;">➔</span> ${arrTime}</div>
+                    </div>
+                    <div style="margin-bottom: 1rem; color: var(--text-main); font-weight: 600;">
+                        <i class="ph ph-clock"></i> Temps de parcours : ${duree}
+                    </div>
+                    ${conn.transfers > 0 ? timelineHTML : '<div class="station-name">'+conn.from.station.name+' ➔ '+conn.to.station.name+'</div>'}
                 </div>
             `;
         });
     } catch (error) {
-        container.innerHTML = '<p style="color: red;">Erreur de connexion au réseau.</p>';
+        container.innerHTML = '<div class="empty-state"><p style="color: red;">Erreur de connexion au réseau ferroviaire.</p></div>';
     }
 }
 
@@ -179,7 +198,7 @@ async function sauvegarderFavoriActuel() {
     }]);
 
     if (!error) {
-        document.getElementById('btn-save-favori').innerText = "✅ Sauvegardé";
+        document.getElementById('btn-save-favori').innerHTML = '<i class="ph-fill ph-check-circle"></i> Sauvegardé !';
         chargerFavoris();
     }
 }
@@ -191,14 +210,17 @@ async function chargerFavoris() {
     const container = document.getElementById('favorites-container');
     
     if (!trajets || trajets.length === 0) {
-        container.innerHTML = '<p class="text-muted">Aucun favori enregistré.</p>'; return;
+        container.innerHTML = '<div class="empty-state"><p>Vous n\'avez pas encore sauvegardé de trajet.</p></div>'; return;
     }
 
     container.innerHTML = '';
     trajets.forEach(trajet => {
         container.innerHTML += `
-            <div class="train-card" style="cursor:pointer;" onclick="document.getElementById('depart').value='${trajet.gare_depart}'; document.getElementById('arrivee').value='${trajet.gare_arrivee}'; document.getElementById('btn-recherche').click();">
-                <div class="station-name">${trajet.gare_depart} ➔ ${trajet.gare_arrivee}</div>
+            <div class="train-card" style="cursor:pointer;" onclick="document.getElementById('depart').value='${trajet.gare_depart}'; document.getElementById('arrivee').value='${trajet.gare_arrivee}'; document.getElementById('btn-recherche').click(); window.scrollTo({top: 0, behavior: 'smooth'});">
+                <div class="card-header" style="color: var(--primary);">⭐ Itinéraire Favori</div>
+                <div class="time-block" style="margin-bottom:0;">
+                    <div class="time" style="font-size: 1.5rem;">${trajet.gare_depart} ➔ ${trajet.gare_arrivee}</div>
+                </div>
             </div>
         `;
     });
