@@ -1,148 +1,112 @@
-// --- 1. CONFIGURATION ---
-const SUPABASE_URL = 'https://TON_PROJET.supabase.co'; // Remplace par ton URL
-const SUPABASE_KEY = 'TA_CLE_ANON_PUBLIC'; // Remplace par ta clé Supabase
-const NAVITIA_TOKEN = 'TON_TOKEN_NAVITIA'; // Obtiens-le gratuitement sur navitia.io
-
-// const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('⚡ Hypertrain initialisé');
+    console.log('⚡ Hypertrain ultra-rapide est prêt');
     
-    // Bouton inversion
+    // On charge les favoris enregistrés dans le navigateur
+    afficherFavoris();
+
+    // Inverser les gares
     document.getElementById('btn-swap').addEventListener('click', () => {
         const dep = document.getElementById('depart');
         const arr = document.getElementById('arrivee');
         [dep.value, arr.value] = [arr.value, dep.value];
     });
 
-    // Lancement de la recherche principale
-    document.getElementById('btn-recherche').addEventListener('click', () => {
+    // Lancer la recherche
+    document.getElementById('btn-recherche').addEventListener('click', async () => {
         const depart = document.getElementById('depart').value;
         const arrivee = document.getElementById('arrivee').value;
         
         if(!depart || !arrivee) return alert("Remplis les deux gares !");
         
-        // Afficher la section de résultats et le chargement
         document.getElementById('results-section').classList.remove('hidden');
-        document.getElementById('loading-spinner').classList.remove('hidden');
-        document.getElementById('results-container').innerHTML = '';
+        document.getElementById('results-container').innerHTML = '<p style="color: var(--primary);">Recherche des trains en cours...</p>';
 
-        // sauvegarderTrajet(depart, arrivee); // Décommente quand Supabase est lié
-        rechercherItineraireNavitia(depart, arrivee);
+        sauvegarderFavori(depart, arrivee);
+        chercherTrainsSansCle(depart, arrivee);
     });
-
-    // chargerFavorisDepuisSupabase(); // Décommente quand Supabase est lié
 });
 
-// --- 2. MOTEUR DE RECHERCHE NAVITIA (VRAIES DONNÉES) ---
-
-// Étape 1 : Convertir le nom d'une ville/gare en ID officiel Navitia
-async function getPlaceId(query) {
-    const res = await fetch(`https://api.navitia.io/v1/coverage/fr-nw/places?q=${query}`, {
-        headers: { 'Authorization': NAVITIA_TOKEN }
-    });
-    const data = await res.json();
-    if (data.places && data.places.length > 0) {
-        return data.places[0].id; // Retourne l'ID de la gare trouvée
-    }
-    throw new Error(`Gare introuvable : ${query}`);
-}
-
-// Étape 2 : Chercher les trajets entre les deux ID
-async function rechercherItineraireNavitia(villeDepart, villeArrivee) {
+// --- LE MOTEUR DE RECHERCHE MAGIQUE (SANS CLÉ API) ---
+async function chercherTrainsSansCle(depart, arrivee) {
     try {
-        if (NAVITIA_TOKEN === 'TON_TOKEN_NAVITIA') {
-            throw new Error("Clé d'API Navitia manquante. Remplace 'TON_TOKEN_NAVITIA' dans app.js");
-        }
-
-        const idDepart = await getPlaceId(villeDepart);
-        const idArrivee = await getPlaceId(villeArrivee);
-
-        const res = await fetch(`https://api.navitia.io/v1/coverage/fr-nw/journeys?from=${idDepart}&to=${idArrivee}`, {
-            headers: { 'Authorization': NAVITIA_TOKEN }
-        });
-        
+        // On interroge l'Open Data Suisse qui connaît le réseau SNCF et qui est 100% ouvert
+        const url = `https://transport.opendata.ch/v1/connections?from=${depart}&to=${arrivee}&limit=3`;
+        const res = await fetch(url);
         const data = await res.json();
-        document.getElementById('loading-spinner').classList.add('hidden');
 
-        if (data.journeys && data.journeys.length > 0) {
-            afficherResultats(data.journeys, villeDepart, villeArrivee);
-        } else {
-            document.getElementById('results-container').innerHTML = '<p>Aucun train trouvé pour cet itinéraire aujourd\'hui.</p>';
+        const container = document.getElementById('results-container');
+        container.innerHTML = '';
+
+        if (!data.connections || data.connections.length === 0) {
+            container.innerHTML = '<p>Aucun train trouvé pour ce trajet.</p>';
+            return;
         }
+
+        // On affiche les 3 prochains trains
+        data.connections.forEach(conn => {
+            // Formatage de l'heure
+            const depTime = new Date(conn.from.departure).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+            const arrTime = new Date(conn.to.arrival).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+            
+            // Formatage de la durée (L'API donne "00d02:30:00", on transforme en "2h30")
+            const duree = conn.duration.replace('00d', '').substring(1, 6).replace(':', 'h');
+            
+            const correspondances = conn.transfers;
+
+            container.innerHTML += `
+                <div class="train-card">
+                    <div class="card-header">
+                        <span>Train</span>
+                        <span>${correspondances === 0 ? 'Direct' : correspondances + ' correspondance(s)'}</span>
+                    </div>
+                    <div class="time">${depTime} ➔ ${arrTime}</div>
+                    <div class="duration">Durée du trajet : ${duree}</div>
+                    <div class="route">${conn.from.station.name} ➔ ${conn.to.station.name}</div>
+                    <div class="status-badge">
+                        <span style="font-size: 1.2rem">•</span> Trajet Confirmé
+                    </div>
+                </div>
+            `;
+        });
 
     } catch (error) {
-        document.getElementById('loading-spinner').classList.add('hidden');
-        document.getElementById('results-container').innerHTML = `<p style="color: red;">Erreur : ${error.message}</p>`;
+        document.getElementById('results-container').innerHTML = '<p style="color: red;">Erreur lors de la recherche des horaires.</p>';
         console.error(error);
     }
 }
 
-// Étape 3 : Afficher les résultats sur le site
-function afficherResultats(journeys, depName, arrName) {
-    const container = document.getElementById('results-container');
-    container.innerHTML = '';
-
-    // On prend les 3 premiers résultats
-    journeys.slice(0, 3).forEach(journey => {
-        // Navitia donne les dates au format YYYYMMDDTHHMMSS
-        const formatTime = (navitiaDate) => {
-            const timeStr = navitiaDate.split('T')[1];
-            return `${timeStr.substring(0, 2)}h${timeStr.substring(2, 4)}`;
-        };
-
-        const departHeure = formatTime(journey.departure_date_time);
-        const arriveeHeure = formatTime(journey.arrival_date_time);
-        const dureeMinutes = Math.round(journey.duration / 60);
-        
-        // On cherche le nom du réseau (TER, TGV, etc.) dans la première section de transport
-        const ptSection = journey.sections.find(s => s.type === 'public_transport');
-        const trainType = ptSection && ptSection.display_informations ? ptSection.display_informations.network : 'Train';
-
-        container.innerHTML += `
-            <div class="train-card">
-                <div class="card-header">
-                    <span>${trainType}</span>
-                    <span>${journey.nb_transfers === 0 ? 'Direct' : journey.nb_transfers + ' correspondance(s)'}</span>
-                </div>
-                <div class="time">${departHeure} ➔ ${arriveeHeure}</div>
-                <div class="duration">Durée du trajet : ${dureeMinutes} min</div>
-                <div class="route">${depName} ➔ ${arrName}</div>
-                <div class="status-badge">
-                    <span style="font-size: 1.2rem">•</span> Circule normalement
-                </div>
-            </div>
-        `;
-    });
+// --- LA MÉMOIRE LOCALE (SANS BASE DE DONNÉES) ---
+function sauvegarderFavori(depart, arrivee) {
+    // On lit la mémoire du navigateur
+    let favoris = JSON.parse(localStorage.getItem('hypertrain_favoris')) || [];
+    
+    // On vérifie si le trajet existe déjà pour ne pas l'avoir en double
+    const existe = favoris.find(f => f.depart.toLowerCase() === depart.toLowerCase() && f.arrivee.toLowerCase() === arrivee.toLowerCase());
+    
+    if (!existe) {
+        favoris.push({ depart, arrivee });
+        if (favoris.length > 3) favoris.shift(); // On garde seulement les 3 plus récents
+        localStorage.setItem('hypertrain_favoris', JSON.stringify(favoris));
+        afficherFavoris();
+    }
 }
 
-// --- 3. BASE DE DONNÉES SUPABASE ---
-async function sauvegarderTrajet(depart, arrivee) {
-    const { error } = await supabase.from('trajets_favoris').insert([{ 
-        gare_depart: depart, 
-        gare_arrivee: arrivee, 
-        user_id: 'ID_UTILISATEUR_TEST' // À dynamiser avec l'auth Supabase plus tard
-    }]);
-    if (!error) chargerFavorisDepuisSupabase();
-}
-
-async function chargerFavorisDepuisSupabase() {
-    const { data: trajets, error } = await supabase
-        .from('trajets_favoris')
-        .select('*')
-        .limit(3)
-        .order('created_at', { ascending: false });
-
-    if (error || !trajets) return;
-
+function afficherFavoris() {
+    let favoris = JSON.parse(localStorage.getItem('hypertrain_favoris')) || [];
     const container = document.getElementById('favorites-container');
+    
+    if (favoris.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">Vos recherches apparaîtront ici.</p>';
+        return;
+    }
+
     container.innerHTML = '';
-    trajets.forEach(trajet => {
+    favoris.reverse().forEach(fav => {
         container.innerHTML += `
-            <div class="train-card" style="cursor: pointer;" onclick="document.getElementById('depart').value='${trajet.gare_depart}'; document.getElementById('arrivee').value='${trajet.gare_arrivee}'; document.getElementById('btn-recherche').click();">
-                <div class="card-header"><span>Favori enregistré</span></div>
-                <div class="route">${trajet.gare_depart} ➔ ${trajet.gare_arrivee}</div>
-                <p style="color: var(--primary); font-size: 0.9rem;">Relancer la recherche ➔</p>
+            <div class="train-card" style="cursor: pointer;" onclick="document.getElementById('depart').value='${fav.depart}'; document.getElementById('arrivee').value='${fav.arrivee}'; document.getElementById('btn-recherche').click();">
+                <div class="card-header"><span>Favori local</span></div>
+                <div class="route">${fav.depart} ➔ ${fav.arrivee}</div>
+                <p style="color: var(--primary); font-size: 0.9rem; margin-top: 1rem;">Lancer la recherche ➔</p>
             </div>
         `;
     });
