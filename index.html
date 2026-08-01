@@ -3,50 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hypertrain | L'essentiel, sans détour</title>
+    <title>Hypertrain | Voyage premium</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+    <!-- Fenêtre modale de connexion -->
+    <div id="auth-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Connexion Hypertrain</h2>
+            <input type="email" id="auth-email" placeholder="Adresse e-mail">
+            <input type="password" id="auth-password" placeholder="Mot de passe">
+            <div class="auth-buttons">
+                <button id="btn-login" class="btn-primary">Se connecter</button>
+                <button id="btn-register" class="btn-secondary">Créer un compte</button>
+            </div>
+            <button id="btn-close-modal" class="btn-text">Fermer</button>
+        </div>
+    </div>
+
     <div class="app-container">
         <header>
-            <div class="logo">
-                <span class="lightning">⚡</span> Hypertrain
-            </div>
-            <div class="user-profile">
-                <span id="user-name">Mode Test (Sans Auth)</span>
+            <div class="logo">⚡ Hypertrain</div>
+            <div class="user-profile" id="btn-user-profile">
+                <span id="user-name">Se connecter</span>
                 <div class="avatar"></div>
             </div>
+            <button id="btn-logout" class="btn-text hidden">Déconnexion</button>
         </header>
 
         <main>
             <section class="search-section">
-                <h1>Prochain départ ?</h1>
+                <h1>Où allez-vous ?</h1>
                 <div class="search-box">
                     <div class="input-group">
-                        <span class="icon">📍</span>
-                        <input type="text" id="depart" placeholder="Départ (ex: Montluçon)" value="Montluçon">
+                        <input type="text" id="depart" placeholder="Départ (ex: Montluçon)">
+                        <div id="autocomplete-depart" class="autocomplete-list hidden"></div>
                     </div>
-                    <button class="btn-swap" id="btn-swap" aria-label="Inverser">⇄</button>
+                    <button class="btn-swap" id="btn-swap">⇄</button>
                     <div class="input-group">
-                        <span class="icon">🏁</span>
                         <input type="text" id="arrivee" placeholder="Arrivée (ex: Paris)">
+                        <div id="autocomplete-arrivee" class="autocomplete-list hidden"></div>
                     </div>
                     <button id="btn-recherche" class="btn-primary">Rechercher</button>
                 </div>
             </section>
 
-            <!-- Zone où s'afficheront les résultats en direct -->
             <section id="results-section" class="hidden">
-                <h2>Résultats en direct</h2>
-                <div id="loading-spinner" class="hidden">Recherche sur le réseau ferroviaire...</div>
-                <div class="favorites-grid" id="results-container"></div>
+                <div class="results-header">
+                    <h2>Résultats</h2>
+                    <button id="btn-save-favori" class="btn-secondary hidden">⭐ Sauvegarder ce trajet</button>
+                </div>
+                <div id="results-container" class="results-list"></div>
             </section>
 
             <section class="favorites-section">
                 <h2>Mes Trajets Sauvegardés</h2>
                 <div class="favorites-grid" id="favorites-container">
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">Connectez votre base de données pour voir vos favoris.</p>
+                    <p class="text-muted">Connectez-vous pour voir vos favoris.</p>
                 </div>
             </section>
         </main>
