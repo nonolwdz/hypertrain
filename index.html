@@ -1,1 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hypertrain | L'essentiel, sans détour</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Importation de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <span class="lightning">⚡</span> Hypertrain
+            </div>
+            <div class="user-profile">
+                <span id="user-name">Connexion</span>
+                <div class="avatar"></div>
+            </div>
+        </header>
 
+        <main>
+            <section class="search-section">
+                <h1>Où allons-nous ?</h1>
+                <div class="search-box">
+                    <div class="input-group">
+                        <span class="icon">📍</span>
+                        <input type="text" id="depart" placeholder="Départ (ex: Montluçon)">
+                    </div>
+                    <button class="btn-swap" id="btn-swap" aria-label="Inverser les gares">⇄</button>
+                    <div class="input-group">
+                        <span class="icon">🏁</span>
+                        <input type="text" id="arrivee" placeholder="Arrivée (ex: Paris)">
+                    </div>
+                    <button id="btn-recherche" class="btn-primary">Rechercher</button>
+                </div>
+            </section>
+
+            <section class="favorites-section">
+                <h2>Mes Trajets Rapides</h2>
+                <div class="favorites-grid" id="favorites-container">
+                    <!-- Les favoris seront injectés ici par JS -->
+                    <div class="skeleton-loader"></div>
+                    <div class="skeleton-loader"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
