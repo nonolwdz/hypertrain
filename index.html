@@ -4,68 +4,94 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hypertrain | Voyage premium</title>
-    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Fenêtre modale de connexion -->
+    <!-- Modale de connexion -->
     <div id="auth-modal" class="modal hidden">
         <div class="modal-content">
-            <h2>Connexion Hypertrain</h2>
-            <input type="email" id="auth-email" placeholder="Adresse e-mail">
-            <input type="password" id="auth-password" placeholder="Mot de passe">
+            <button id="btn-close-modal" class="btn-icon-close"><i class="ph ph-x"></i></button>
+            <div class="modal-header">
+                <i class="ph-fill ph-train" style="font-size: 2.5rem; color: var(--primary);"></i>
+                <h2>Bienvenue sur Hypertrain</h2>
+                <p>Connectez-vous pour sauvegarder vos trajets.</p>
+            </div>
+            <div class="input-modern">
+                <i class="ph ph-envelope"></i>
+                <input type="email" id="auth-email" placeholder="Adresse e-mail">
+            </div>
+            <div class="input-modern">
+                <i class="ph ph-lock"></i>
+                <input type="password" id="auth-password" placeholder="Mot de passe">
+            </div>
             <div class="auth-buttons">
                 <button id="btn-login" class="btn-primary">Se connecter</button>
-                <button id="btn-register" class="btn-secondary">Créer un compte</button>
+                <button id="btn-register" class="btn-secondary">Créer mon compte</button>
             </div>
-            <button id="btn-close-modal" class="btn-text">Fermer</button>
         </div>
     </div>
 
     <div class="app-container">
         <header>
-            <div class="logo">⚡ Hypertrain</div>
-            <div class="user-profile" id="btn-user-profile">
-                <span id="user-name">Se connecter</span>
-                <div class="avatar"></div>
+            <div class="logo">
+                <i class="ph-fill ph-train"></i> Hypertrain
             </div>
-            <button id="btn-logout" class="btn-text hidden">Déconnexion</button>
+            <div class="header-actions">
+                <button id="btn-logout" class="btn-text hidden">Déconnexion</button>
+                <div class="user-profile" id="btn-user-profile">
+                    <span id="user-name">Connexion</span>
+                    <i class="ph-fill ph-user-circle"></i>
+                </div>
+            </div>
         </header>
 
         <main>
-            <section class="search-section">
-                <h1>Où allez-vous ?</h1>
+            <section class="hero-section">
+                <h1>Où souhaitez-vous aller ?</h1>
+                
                 <div class="search-box">
                     <div class="input-group">
-                        <input type="text" id="depart" placeholder="Départ (ex: Montluçon)">
+                        <i class="ph ph-map-pin icon"></i>
+                        <input type="text" id="depart" placeholder="Gare de départ..." autocomplete="off">
                         <div id="autocomplete-depart" class="autocomplete-list hidden"></div>
                     </div>
-                    <button class="btn-swap" id="btn-swap">⇄</button>
+                    
+                    <button class="btn-swap" id="btn-swap"><i class="ph ph-arrows-left-right"></i></button>
+                    
                     <div class="input-group">
-                        <input type="text" id="arrivee" placeholder="Arrivée (ex: Paris)">
+                        <i class="ph ph-flag-checkered icon"></i>
+                        <input type="text" id="arrivee" placeholder="Gare d'arrivée..." autocomplete="off">
                         <div id="autocomplete-arrivee" class="autocomplete-list hidden"></div>
                     </div>
-                    <button id="btn-recherche" class="btn-primary">Rechercher</button>
+                    
+                    <button id="btn-recherche" class="btn-search">Rechercher</button>
                 </div>
             </section>
 
-            <section id="results-section" class="hidden">
-                <div class="results-header">
-                    <h2>Résultats</h2>
-                    <button id="btn-save-favori" class="btn-secondary hidden">⭐ Sauvegarder ce trajet</button>
+            <section id="results-section" class="hidden fade-in">
+                <div class="section-header">
+                    <h2>Prochains départs</h2>
+                    <button id="btn-save-favori" class="btn-save hidden"><i class="ph-fill ph-star"></i> Sauvegarder l'itinéraire</button>
                 </div>
                 <div id="results-container" class="results-list"></div>
             </section>
 
             <section class="favorites-section">
-                <h2>Mes Trajets Sauvegardés</h2>
+                <div class="section-header">
+                    <h2>Vos itinéraires favoris</h2>
+                </div>
                 <div class="favorites-grid" id="favorites-container">
-                    <p class="text-muted">Connectez-vous pour voir vos favoris.</p>
+                    <div class="empty-state">
+                        <i class="ph ph-star"></i>
+                        <p>Connectez-vous pour voir vos favoris.</p>
+                    </div>
                 </div>
             </section>
         </main>
     </div>
-
     <script type="module" src="app.js"></script>
 </body>
 </html>
