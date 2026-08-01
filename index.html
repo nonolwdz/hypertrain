@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hypertrain | L'essentiel, sans détour</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Importation de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -15,20 +14,20 @@
                 <span class="lightning">⚡</span> Hypertrain
             </div>
             <div class="user-profile">
-                <span id="user-name">Connexion</span>
+                <span id="user-name">Mode Test (Sans Auth)</span>
                 <div class="avatar"></div>
             </div>
         </header>
 
         <main>
             <section class="search-section">
-                <h1>Où allons-nous ?</h1>
+                <h1>Prochain départ ?</h1>
                 <div class="search-box">
                     <div class="input-group">
                         <span class="icon">📍</span>
-                        <input type="text" id="depart" placeholder="Départ (ex: Montluçon)">
+                        <input type="text" id="depart" placeholder="Départ (ex: Montluçon)" value="Montluçon">
                     </div>
-                    <button class="btn-swap" id="btn-swap" aria-label="Inverser les gares">⇄</button>
+                    <button class="btn-swap" id="btn-swap" aria-label="Inverser">⇄</button>
                     <div class="input-group">
                         <span class="icon">🏁</span>
                         <input type="text" id="arrivee" placeholder="Arrivée (ex: Paris)">
@@ -37,12 +36,17 @@
                 </div>
             </section>
 
+            <!-- Zone où s'afficheront les résultats en direct -->
+            <section id="results-section" class="hidden">
+                <h2>Résultats en direct</h2>
+                <div id="loading-spinner" class="hidden">Recherche sur le réseau ferroviaire...</div>
+                <div class="favorites-grid" id="results-container"></div>
+            </section>
+
             <section class="favorites-section">
-                <h2>Mes Trajets Rapides</h2>
+                <h2>Mes Trajets Sauvegardés</h2>
                 <div class="favorites-grid" id="favorites-container">
-                    <!-- Les favoris seront injectés ici par JS -->
-                    <div class="skeleton-loader"></div>
-                    <div class="skeleton-loader"></div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Connectez votre base de données pour voir vos favoris.</p>
                 </div>
             </section>
         </main>
