@@ -1,112 +1,204 @@
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('⚡ Hypertrain ultra-rapide est prêt');
-    
-    // On charge les favoris enregistrés dans le navigateur
-    afficherFavoris();
+const SUPABASE_URL = 'https://TON_PROJET.supabase.co';
+const SUPABASE_KEY = 'TA_CLE_PUBLIQUE';
 
-    // Inverser les gares
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+let currentSearch = null; // Pour sauvegarder le trajet si l'utilisateur le demande
+
+document.addEventListener('DOMContentLoaded', async () => {
+    verifierSession();
+
+    // Gestion de la modale de connexion
+    document.getElementById('btn-user-profile').addEventListener('click', () => {
+        if (!currentUser) document.getElementById('auth-modal').classList.remove('hidden');
+    });
+    document.getElementById('btn-close-modal').addEventListener('click', () => document.getElementById('auth-modal').classList.add('hidden'));
+    
+    // Auth Supabase
+    document.getElementById('btn-login').addEventListener('click', () => gererAuth('login'));
+    document.getElementById('btn-register').addEventListener('click', () => gererAuth('register'));
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.reload();
+    });
+
+    // Autocomplétion
+    setupAutocomplete('depart', 'autocomplete-depart');
+    setupAutocomplete('arrivee', 'autocomplete-arrivee');
+
+    // Inverser
     document.getElementById('btn-swap').addEventListener('click', () => {
-        const dep = document.getElementById('depart');
-        const arr = document.getElementById('arrivee');
+        const dep = document.getElementById('depart'), arr = document.getElementById('arrivee');
         [dep.value, arr.value] = [arr.value, dep.value];
     });
 
-    // Lancer la recherche
-    document.getElementById('btn-recherche').addEventListener('click', async () => {
-        const depart = document.getElementById('depart').value;
-        const arrivee = document.getElementById('arrivee').value;
+    // Rechercher
+    document.getElementById('btn-recherche').addEventListener('click', () => {
+        const dep = document.getElementById('depart').value;
+        const arr = document.getElementById('arrivee').value;
+        if (!dep || !arr) return;
         
-        if(!depart || !arrivee) return alert("Remplis les deux gares !");
-        
+        currentSearch = { depart: dep, arrivee: arr };
         document.getElementById('results-section').classList.remove('hidden');
-        document.getElementById('results-container').innerHTML = '<p style="color: var(--primary);">Recherche des trains en cours...</p>';
-
-        sauvegarderFavori(depart, arrivee);
-        chercherTrainsSansCle(depart, arrivee);
+        
+        // Afficher le bouton de sauvegarde si l'utilisateur est connecté
+        const btnSave = document.getElementById('btn-save-favori');
+        if (currentUser) btnSave.classList.remove('hidden');
+        
+        chercherTrains(dep, arr);
     });
+
+    // Sauvegarder uniquement au clic
+    document.getElementById('btn-save-favori').addEventListener('click', sauvegarderFavoriActuel);
 });
 
-// --- LE MOTEUR DE RECHERCHE MAGIQUE (SANS CLÉ API) ---
-async function chercherTrainsSansCle(depart, arrivee) {
-    try {
-        // On interroge l'Open Data Suisse qui connaît le réseau SNCF et qui est 100% ouvert
-        const url = `https://transport.opendata.ch/v1/connections?from=${depart}&to=${arrivee}&limit=3`;
-        const res = await fetch(url);
-        const data = await res.json();
+// --- AUTHENTIFICATION ---
+async function verifierSession() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        currentUser = session.user;
+        document.getElementById('user-name').innerText = currentUser.email.split('@')[0];
+        document.getElementById('btn-logout').classList.remove('hidden');
+        chargerFavoris();
+    }
+}
 
-        const container = document.getElementById('results-container');
+async function gererAuth(action) {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    
+    let result;
+    if (action === 'login') {
+        result = await supabase.auth.signInWithPassword({ email, password });
+    } else {
+        result = await supabase.auth.signUp({ email, password });
+    }
+
+    if (result.error) alert("Erreur : " + result.error.message);
+    else window.location.reload();
+}
+
+// --- AUTOCOMPLÉTION (Correction des fautes) ---
+function setupAutocomplete(inputId, listId) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+
+    input.addEventListener('input', async (e) => {
+        const val = e.target.value;
+        if (val.length < 3) { list.classList.add('hidden'); return; }
+
+        // Appel API suisse pour deviner la gare
+        const res = await fetch(`https://transport.opendata.ch/v1/locations?query=${val}&type=station`);
+        const data = await res.json();
+        
+        list.innerHTML = '';
+        if (data.stations.length > 0) {
+            list.classList.remove('hidden');
+            data.stations.slice(0, 4).forEach(station => {
+                if(station.name) {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-item';
+                    div.innerText = station.name;
+                    div.onclick = () => {
+                        input.value = station.name;
+                        list.classList.add('hidden');
+                    };
+                    list.appendChild(div);
+                }
+            });
+        }
+    });
+}
+
+// --- MOTEUR DE RECHERCHE & CORRESPONDANCES ---
+async function chercherTrains(depart, arrivee) {
+    const container = document.getElementById('results-container');
+    container.innerHTML = '<p>Analyse du réseau ferroviaire...</p>';
+
+    try {
+        const res = await fetch(`https://transport.opendata.ch/v1/connections?from=${depart}&to=${arrivee}&limit=4`);
+        const data = await res.json();
         container.innerHTML = '';
 
         if (!data.connections || data.connections.length === 0) {
-            container.innerHTML = '<p>Aucun train trouvé pour ce trajet.</p>';
-            return;
+            container.innerHTML = '<p>Aucun trajet trouvé.</p>'; return;
         }
 
-        // On affiche les 3 prochains trains
         data.connections.forEach(conn => {
-            // Formatage de l'heure
-            const depTime = new Date(conn.from.departure).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-            const arrTime = new Date(conn.to.arrival).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-            
-            // Formatage de la durée (L'API donne "00d02:30:00", on transforme en "2h30")
+            const depTime = new Date(conn.from.departure).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+            const arrTime = new Date(conn.to.arrival).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
             const duree = conn.duration.replace('00d', '').substring(1, 6).replace(':', 'h');
             
-            const correspondances = conn.transfers;
+            // Générer le détail des correspondances (Timeline)
+            let timelineHTML = '<div class="timeline">';
+            conn.sections.forEach(section => {
+                if (section.journey) { // Si c'est un vrai train et pas de la marche
+                    const secDep = new Date(section.departure.departure).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                    const trainType = section.journey.category || 'Train';
+                    
+                    timelineHTML += `
+                        <div class="timeline-item">
+                            <div class="station-name">${secDep} - ${section.departure.station.name}</div>
+                            <div class="train-info">🚆 ${trainType} ${section.journey.number || ''}</div>
+                        </div>
+                    `;
+                }
+            });
+            // Ajouter la gare d'arrivée finale dans la timeline
+            timelineHTML += `
+                <div class="timeline-item">
+                    <div class="station-name">${arrTime} - ${conn.to.station.name}</div>
+                </div>
+            </div>`;
 
             container.innerHTML += `
                 <div class="train-card">
-                    <div class="card-header">
-                        <span>Train</span>
-                        <span>${correspondances === 0 ? 'Direct' : correspondances + ' correspondance(s)'}</span>
+                    <div class="card-main-info">
+                        <div>
+                            <div class="time">${depTime} ➔ ${arrTime}</div>
+                            <div class="duration">${duree} • ${conn.transfers} correspondance(s)</div>
+                        </div>
                     </div>
-                    <div class="time">${depTime} ➔ ${arrTime}</div>
-                    <div class="duration">Durée du trajet : ${duree}</div>
-                    <div class="route">${conn.from.station.name} ➔ ${conn.to.station.name}</div>
-                    <div class="status-badge">
-                        <span style="font-size: 1.2rem">•</span> Trajet Confirmé
-                    </div>
+                    ${conn.transfers > 0 ? timelineHTML : '<p class="text-muted" style="margin-top:1rem;">Trajet direct</p>'}
                 </div>
             `;
         });
-
     } catch (error) {
-        document.getElementById('results-container').innerHTML = '<p style="color: red;">Erreur lors de la recherche des horaires.</p>';
-        console.error(error);
+        container.innerHTML = '<p style="color: red;">Erreur de connexion au réseau.</p>';
     }
 }
 
-// --- LA MÉMOIRE LOCALE (SANS BASE DE DONNÉES) ---
-function sauvegarderFavori(depart, arrivee) {
-    // On lit la mémoire du navigateur
-    let favoris = JSON.parse(localStorage.getItem('hypertrain_favoris')) || [];
-    
-    // On vérifie si le trajet existe déjà pour ne pas l'avoir en double
-    const existe = favoris.find(f => f.depart.toLowerCase() === depart.toLowerCase() && f.arrivee.toLowerCase() === arrivee.toLowerCase());
-    
-    if (!existe) {
-        favoris.push({ depart, arrivee });
-        if (favoris.length > 3) favoris.shift(); // On garde seulement les 3 plus récents
-        localStorage.setItem('hypertrain_favoris', JSON.stringify(favoris));
-        afficherFavoris();
+// --- BASE DE DONNÉES (Favoris) ---
+async function sauvegarderFavoriActuel() {
+    if (!currentUser || !currentSearch) return;
+
+    const { error } = await supabase.from('trajets_favoris').insert([{ 
+        gare_depart: currentSearch.depart, 
+        gare_arrivee: currentSearch.arrivee, 
+        user_id: currentUser.id 
+    }]);
+
+    if (!error) {
+        document.getElementById('btn-save-favori').innerText = "✅ Sauvegardé";
+        chargerFavoris();
     }
 }
 
-function afficherFavoris() {
-    let favoris = JSON.parse(localStorage.getItem('hypertrain_favoris')) || [];
+async function chargerFavoris() {
+    if (!currentUser) return;
+
+    const { data: trajets } = await supabase.from('trajets_favoris').select('*').eq('user_id', currentUser.id);
     const container = document.getElementById('favorites-container');
     
-    if (favoris.length === 0) {
-        container.innerHTML = '<p style="color: var(--text-muted);">Vos recherches apparaîtront ici.</p>';
-        return;
+    if (!trajets || trajets.length === 0) {
+        container.innerHTML = '<p class="text-muted">Aucun favori enregistré.</p>'; return;
     }
 
     container.innerHTML = '';
-    favoris.reverse().forEach(fav => {
+    trajets.forEach(trajet => {
         container.innerHTML += `
-            <div class="train-card" style="cursor: pointer;" onclick="document.getElementById('depart').value='${fav.depart}'; document.getElementById('arrivee').value='${fav.arrivee}'; document.getElementById('btn-recherche').click();">
-                <div class="card-header"><span>Favori local</span></div>
-                <div class="route">${fav.depart} ➔ ${fav.arrivee}</div>
-                <p style="color: var(--primary); font-size: 0.9rem; margin-top: 1rem;">Lancer la recherche ➔</p>
+            <div class="train-card" style="cursor:pointer;" onclick="document.getElementById('depart').value='${trajet.gare_depart}'; document.getElementById('arrivee').value='${trajet.gare_arrivee}'; document.getElementById('btn-recherche').click();">
+                <div class="station-name">${trajet.gare_depart} ➔ ${trajet.gare_arrivee}</div>
             </div>
         `;
     });
